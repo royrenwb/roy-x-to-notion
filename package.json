@@ -1,0 +1,24 @@
+{
+  "name": "roy-x-to-notion",
+  "version": "1.3.0",
+  "description": "Download X articles to local markdown with images, upload to Notion",
+  "main": "scripts/main-final.js",
+  "scripts": {
+    "start": "node scripts/main-final.js",
+    "test": "node scripts/main-final.js https://x.com/username/status/1234567890",
+    "test-notion": "export NOTION_TOKEN=\"your_token\" && export NOTION_DATABASE_ID=\"your_db_id\" && node scripts/main-final.js https://x.com/username/status/1234567890 --notion"
+  },
+  "keywords": [
+    "twitter",
+    "x",
+    "markdown",
+    "notion",
+    "download"
+  ],
+  "author": "Roy",
+  "license": "MIT",
+  "dependencies": {
+    "cos-nodejs-sdk-v5": "^2.15.4",
+    "dotenv": "^16.4.1"
+  }
+}

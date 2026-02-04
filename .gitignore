@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Environment variables - NEVER commit secrets to Git!
+.env
+
+# Local test files and caches
+x-download/
+test-correct/
+x-to-markdown/
+
+# Temporary files
+*.log
+.DS_Store
