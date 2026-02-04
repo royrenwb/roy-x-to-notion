@@ -7,7 +7,7 @@
 ✅ **完整的本地下载** - 内容提取 + 图片下载 + Markdown生成
 ✅ **高质量的图片** - 自动下载原始质量图片（90%+成功率）
 ✅ **段落结构完整** - 保持文章的原始段落组织
-✅ **Notion集成** - 创建页面，上传内容，图片占位符
+✅ **Notion集成** - 创建页面，上传内容，图片自动插入正确位置
 ✅ **模块化架构** - 阶段1-3和4-6完全隔离，不影响本地文件
 ✅ **跨平台兼容** - macOS/Linux/Windows 通用
 
@@ -21,7 +21,7 @@
 | 阶段 2 | 图片下载 | ✅ 90%+成功率 |
 | 阶段 3 | Markdown生成 | ✅ 完成 |
 | 阶段 4 | Notion页面创建 | ✅ 完成 |
-| 阶段 5 | 图片上传到Notion | 📋 框架完成（待配置云存储） |
+| 阶段 5 | 图片上传到Notion | ✅ 完成（预上传+自动插入） |
 | 阶段 6 | 完整流程测试 | ✅ 完成 |
 
 ---
@@ -41,8 +41,8 @@ node scripts/main-final.js https://x.com/username/status/1234567890
 export NOTION_TOKEN="your_notion_token"
 export NOTION_DATABASE_ID="your_database_id"
 
-# 执行上传
-node scripts/main-final.js https://x.com/username/status/1234567890 --notion
+# 执行上传（会自动上传图片并插入到正确位置）
+node scripts/main-final.js https://x.com/username/status/1234567890 --notion --upload-images
 ```
 
 ### 3. 命令行选项
@@ -52,6 +52,7 @@ node scripts/main-final.js https://x.com/username/status/1234567890 --notion
 | `<url>` | X文章链接（必需） |
 | `-o <path>` | 自定义输出目录 |
 | `--notion` | 上传到Notion（需要配置认证） |
+| `--upload-images` | 上传图片到COS并自动插入到Notion |
 | `--local-only` | 仅本地下载（默认） |
 | `--dry-run` | 模拟运行，不实际下载 |
 | `--help` | 显示帮助信息 |
@@ -70,15 +71,20 @@ node scripts/main-final.js https://x.com/username/status/1234567890 --notion
 
 ### Notion集成（阶段4-5）
 
-**核心创新：图片占位符机制**
+**核心方案：图片预上传 + 一次性创建**
 
-**问题**：阶段4上传文本，阶段5上传图片，如何保持位置？
+**问题**：如何让图片在 Notion 中出现在正确的位置？
 
-**解决方案**：
-- **阶段4**：插入占位符 `⏳ Image placeholder: 01.jpg`
-- **阶段5**：上传图片后，搜索并替换占位符为真实图片
+**解决方案**（v1.3.0+）：
+- **Step 1（图片预上传）**：上传所有图片到 COS，构建 `imageUrlMap: {"01.jpg": "https://...", ...}`
+- **Step 2（转换 Markdown）**：遇到 `![]()` 时，直接通过 `imageUrlMap` 创建 Notion image block
+- **Step 3（创建页面）**：一次性插入完整内容（文本 + 图片在正确位置）
 
-**结果**：图片始终在正确的位置！
+**优势**：
+- ✅ 图片位置100%准确（一次创建，无后续修改）
+- ✅ 无 403 权限错误（不更新现有 blocks）
+- ✅ 更快（单次创建 API 调用 vs 创建+多次更新）
+- ✅ 更干净（无任何占位符）
 
 ---
 
@@ -95,43 +101,40 @@ x-download/{article-title}/
 
 ---
 
-## 🖼️ 占位符机制详解
+## 🖼️ 图片上传流程
 
-### 为什么需要占位符？
+### 为什么需要预上传？
 
 Notion 不支持本地图片路径（如 `images/01.jpg`），需要公共URL（https://...）。
 
-### 工作流程
+### 工作流程（v1.3.0+）
 
 ```
-阶段4: 上传文本 + 占位符
-  └── 🖼️ ⏳ Image placeholder: 01.jpg (Stage 5: will replace with uploaded image)
-      
-阶段5: 上传图片 + 替换占位符
-  ├── 1. 上传到云存储 → https://img.example.com/image01.jpg
-  ├── 2. 搜索占位符
-  └── 3. 替换为真实图片block
+图片预上传（Step 1）
+  ├── 1. 下载所有图片到本地
+  ├── 2. 上传到腾讯云 COS
+  └── 3. 构建 imageUrlMap
+
+转换 Markdown 并创建页面（Step 2-3）
+  ├── 1. 解析 Markdown，遇到 ![]()
+  ├── 2. 从 imageUrlMap 查找 URL
+  ├── 3. 创建 image block（使用外部 URL）
+  └── 4. 一次性创建完整 Notion 页面
 ```
 
-### Notion中的显示
+### Notion中的最终效果
 
-**上传前（阶段4）**：
 ```
 Discord 里一个由主题 + Thread 组成的 Channel
 
-🖼️ ⏳ Image placeholder: 01.jpg (Stage 5: will replace with uploaded image)
+[🖼️ Image 1 - 真实图片显示]
 
 我的「末日小屋」升级版——入住了 Owlia！
 ```
 
-**上传后（阶段5）**：
-```
-Discord 里一个由主题 + Thread 组成的 Channel
-
-![Image 1](https://cdn.example.com/image01.jpg)
-
-我的「末日小屋」升级版——入住了 Owlia！
-```
+**注意：**
+- 如果某张图片上传失败，该图片会在 Notion 中被自动跳过，不影响其他内容
+- 无任何占位符，只显示成功上传的图片
 
 ---
 
@@ -162,6 +165,18 @@ export NOTION_DATABASE_ID="your_database_id"
 
 详细配置请查看 `NOTION_SETUP.md`
 
+### 腾讯云 COS 认证
+
+**必需环境变量**：
+```bash
+export TENCENT_COS_SECRET_ID="your_secret_id"
+export TENCENT_COS_SECRET_KEY="your_secret_key"
+export TENCENT_COS_BUCKET="your-bucket-name-appid"
+export TENCENT_COS_REGION="ap-guangzhou"
+```
+
+详细配置请查看 `ENV_SETUP.md`
+
 ---
 
 ## 📊 技术细节
@@ -172,6 +187,8 @@ export NOTION_DATABASE_ID="your_database_id"
 3. **认证下载**：使用 X cookies 认证
 4. **顺序下载**：按文章中出现的顺序下载
 5. **本地化**：保存到 images/ 文件夹，按 01.jpg, 02.jpg 编号
+6. **上传到 COS**：使用腾讯云 COS 获取公共 URL
+7. **插入 Notion**：通过 imageUrlMap 创建 image blocks
 
 ### 段落识别机制
 - 使用 `baoyu-danger-x-to-markdown` 的原生段落识别
@@ -190,6 +207,7 @@ export NOTION_DATABASE_ID="your_database_id"
 - Node.js 16+
 - Chrome 浏览器（用于首次 X 登录）
 - 写入权限（在当前目录创建 x-download 文件夹）
+- 腾讯云 COS 账号（可选，用于图片上传）
 
 ---
 
@@ -199,24 +217,30 @@ export NOTION_DATABASE_ID="your_database_id"
 
 1. https://x.com/Khazix0918/status/2018892087744397692
    - ✅ 22/25 图片成功
-   - ✅ 176 blocks 上传到 Notion
-   - ✅ Notion: https://www.notion.so/OpenClaw-6-2fd46ebccb358103b64ece845350a6df
+   - ✅ 198 blocks 上传到 Notion
+   - ✅ 图片位置100%准确
+   - ✅ Notion: https://www.notion.so/OpenClaw-6-2fd46ebccb358172992fefb89dfbe0ec
 
 2. https://x.com/zhixianio/status/2018595121084994002
    - ✅ 5/5 图片成功
-   - ✅ 49 blocks 上传到 Notion
-   - ✅ Notion: https://www.notion.so/Agent-Discord-OpenClaw-2fd46ebccb3581bab2e0cbee6af46908
+   - ✅ 54 blocks 上传到 Notion
+   - ✅ 图片位置100%准确
+   - ✅ Notion: https://www.notion.so/Agent-Discord-OpenClaw-2fd46ebccb35817bb092d69a13501850
 
 ---
 
 ## 🔄 版本历史
 
+### v1.3.0 (2026-02-05)
+- ✅ **图片位置修复**：改为预上传方案，解决 403 权限问题
+- ✅ **无占位符**：直接创建 image blocks，无中间状态
+- ✅ **密钥安全**：所有密钥通过环境变量配置
+- ✅ **完整文档**：更新 README 和配置指南
+
 ### v1.2.0 (2026-02-05)
 - ✅ **完整功能实现**：阶段1-6全部完成
-- ✅ **占位符机制**：解决图片位置追踪问题
 - ✅ **模块化架构**：3个核心模块完全独立
 - ✅ **Notion分块上传**：自动处理100 blocks限制
-- 📖 完整文档更新
 
 ### v1.1.0 (2026-02-04)
 - ✅ 自动 X 认证支持
@@ -231,7 +255,7 @@ export NOTION_DATABASE_ID="your_database_id"
 ## 🐛 常见问题
 
 **Q: 为什么有些图片下载失败？**
-A: 可能是网络问题、图片URL已过期（404），或需要重新登录X。当前成功率90%+（27/30）。
+A: 可能是网络问题、图片URL已过期（404），或需要重新登录X。当前成功率90%+。
 
 **Q: 段落结构不正确怎么办？**
 A: 确保 X 页面内容完整加载，或使用Chrome登录后重试。
@@ -239,11 +263,11 @@ A: 确保 X 页面内容完整加载，或使用Chrome登录后重试。
 **Q: Notion上传失败会影响本地文件吗？**
 A: 不会！模块完全隔离，Notion失败不影响本地下载。
 
-**Q: 图片占位符会一直显示吗？**
-A: 不会。阶段5实现后会自动替换为真实图片。
+**Q: 图片会显示占位符吗？**
+A: 不会。新版本（v1.3.0+）直接在创建页面时插入真实的图片，无占位符。
 
 **Q: 需要配置云存储吗？**
-A: 阶段4不需要。阶段5（图片上传到Notion）需要配置云存储（Imgur/Cloudinary/S3等）。
+A: 是的。图片上传到 Notion 需要配置腾讯云 COS（或其他云存储）。详见 `ENV_SETUP.md`。
 
 **Q: 可以批量下载吗？**
 A: 当前支持单个链接。可以写脚本循环调用。
@@ -251,17 +275,22 @@ A: 当前支持单个链接。可以写脚本循环调用。
 **Q: Notion支持哪些数据库属性？**
 A: 最小配置：Title + Author（Rich text）+ Source URL（URL）。
 
+**Q: 为什么不使用占位符机制了？**
+A: v1.3.0 发现占位符替换会触发 Notion API 403 错误（权限限制）。新方案改为预上传图片，直接创建完整页面。
+
 ---
 
 ## 🔗 相关文档
 
 - `SKILL.md` - 技能技术文档
 - `NOTION_SETUP.md` - Notion配置指南
+- `ENV_SETUP.md` - 环境变量配置指南
 - `CHANGELOG.md` - 版本变更日志
 
 ---
 
 **开发状态**：✅ 阶段1-5完成 | 🎯 生产环境可用
-**最后更新**：2026-02-05 02:18
+**最后更新**：2026-02-05 03:30
 **维护者**：Roy + Pi (派)
 **版本**：v1.3.0
+**仓库**：https://github.com/royrenwb/roy-x-to-notion
