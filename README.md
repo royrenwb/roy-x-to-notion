@@ -209,6 +209,70 @@ export TENCENT_COS_REGION="ap-guangzhou"
 - 写入权限（在当前目录创建 x-download 文件夹）
 - 腾讯云 COS 账号（可选，用于图片上传）
 
+### Bun 运行时（必需）
+
+本技能使用 `bun` 运行时来执行 `baoyu-danger-x-to-markdown` TypeScript 脚本。
+
+```bash
+# 检查/bun 是否已安装
+bun --version
+
+# 如果未安装
+npm install -g bun
+```
+
+---
+
+## 📦 依赖
+
+### NPM 包依赖
+
+本技能使用以下 NPM 包：
+
+```bash
+# 安装依赖
+npm install
+```
+
+**核心依赖：**
+- `cos-nodejs-sdk-v5@^2.15.4` - 腾讯云 COS SDK
+- `dotenv@^16.4.1` - 环境变量加载
+
+### Clawdbot 技能依赖
+
+本技能依赖以下 Clawdbot 技能：
+
+**baoyu-danger-x-to-markdown**
+- **用途**：提取 X（Twitter）文章内容，生成 Markdown
+- **位置**：`/Users/roy/.agents/skills/baoyu-danger-x-to-markdown/`
+- **安装**：此技能应在 Clawdbot 技能目录中，通常通过 Clawdbot 管理
+- **Cookies 位置**：`~/Library/Application Support/baoyu-skills/x-to-markdown/cookies.json`
+
+**如何在非 Clawdbot 环境中使用？**
+
+如果你不是在 Clawdbot 环境中运行本技能，需要：
+
+1. **手动安装 baoyu-danger-x-to-markdown**：
+   ```bash
+   mkdir -p ~/.agents/skills/baoyu-danger-x-to-markdown
+   cd ~/.agents/skills/baoyu-danger-x-to-markdown
+   git clone https://github.com/[repo-url] .
+   npm install
+   ```
+
+2. **修改脚本路径**：
+   编辑 `scripts/core-downloader.js`，找到这一行：
+   ```javascript
+   const scriptPath = '/Users/roy/.agents/skills/baoyu-danger-x-to-markdown/scripts/main.ts';
+   ```
+   
+   修改为你的实际路径。
+
+**Clawdbot 用户：**
+- 无需额外操作，技能已内置
+- 首次使用时会自动打开 Chrome 登录 X
+- Cookies 会自动缓存，后续无需登录
+
 ---
 
 ## 📊 测试验证
