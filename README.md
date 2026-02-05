@@ -57,6 +57,19 @@ node scripts/main-final.js https://x.com/username/status/1234567890 --notion --u
 | `--dry-run` | 模拟运行，不实际下载 |
 | `--help` | 显示帮助信息 |
 
+### 4. 从任意目录运行
+
+```bash
+# 方法 1：从 scripts 目录运行
+cd scripts
+node main-final.js https://x.com/username/status/1234567890 --notion --upload-images
+
+# 方法 2：从项目根目录运行（使用 npm scripts）
+npm start -- https://x.com/username/status/1234567890 --notion --upload-images
+```
+
+**注意：** 环境变量会自动从项目根目录的 `.env` 文件加载，无论从哪个目录运行脚本。
+
 ---
 
 ## 📋 工作原理
@@ -176,6 +189,69 @@ export TENCENT_COS_REGION="ap-guangzhou"
 ```
 
 详细配置请查看 `ENV_SETUP.md`
+
+---
+
+## 🔧 环境变量配置
+
+### 配置文件：`.env`
+
+本技能使用 `.env` 文件存储所有敏感配置（密钥、API tokens 等）。`.env` 文件已添加到 `.gitignore`，不会被提交到 Git。
+
+### 创建 `.env` 文件
+
+在项目根目录创建 `.env` 文件：
+
+```bash
+cp .env.example .env
+```
+
+### 编辑 `.env` 文件
+
+```bash
+# Tencent Cloud COS Configuration
+TENCENT_COS_SECRET_ID=your_secret_id_here
+TENCENT_COS_SECRET_KEY=your_secret_key_here
+TENCENT_COS_BUCKET=your-bucket-name-appid
+TENCENT_COS_REGION=ap-guangzhou
+TENCENT_COS_BASE_FOLDER=p/notion
+
+# Notion Configuration (可选，也可以通过环境变量设置)
+NOTION_TOKEN=your_notion_token_here
+NOTION_DATABASE_ID=your_notion_database_id_here
+```
+
+### 验证配置
+
+运行以下命令验证环境变量是否正确配置：
+
+```bash
+# 切换到项目目录
+cd /Users/roy/clawd/skills/roy-x-to-notion
+
+# 使用 --dry-run 验证配置
+node scripts/main-final.js https://x.com/username/status/1234567890 --dry-run
+```
+
+如果看到 "DRY RUN" 输出，说明配置正常。
+
+### 环境变量优先级
+
+脚本会按以下优先级加载环境变量：
+1. 系统环境变量（`export` 设置的）
+2. `.env` 文件中的配置
+3. 代码中的默认值（无敏感信息）
+
+### 常见问题
+
+**Q: 为什么图片上传失败？**
+A: 检查 `.env` 文件中的 `TENCENT_COS_*` 配置是否正确，特别是 Bucket 名称格式应为 `name-appid`（如 `dengta-1256683598`）。
+
+**Q: `.env` 文件在哪里？**
+A: 在项目根目录（与 `scripts/` 同级），不是在 `scripts/` 目录内。
+
+**Q: 可以不用 `.env` 文件吗？**
+A: 可以，直接导出环境变量或使用 shell 脚本。但推荐使用 `.env` 文件管理配置。
 
 ---
 
@@ -341,6 +417,18 @@ A: 最小配置：Title + Author（Rich text）+ Source URL（URL）。
 
 **Q: 为什么不使用占位符机制了？**
 A: v1.3.0 发现占位符替换会触发 Notion API 403 错误（权限限制）。新方案改为预上传图片，直接创建完整页面。
+
+**Q: 如何配置环境变量？**
+A: 在项目根目录创建 `.env` 文件（从 `.env.example` 复制），填入你的密钥和配置。脚本会自动加载此文件，无论从哪个目录运行。
+
+**Q: 环境变量加载失败怎么办？**
+A: 检查以下几点：1) `.env` 文件是否在项目根目录（不是 `scripts/` 中）；2) 文件格式是否正确（无多余空格或引号）；3) 使用 `--dry-run` 测试配置是否正确。
+
+**Q: 图片上传失败，提示 "Bucket should format as xxx"？**
+A: 检查 `TENCENT_COS_BUCKET` 配置格式应为 `bucketname-appid`（如 `dengta-1256683598`），不是单纯的 bucket 名称。
+
+**Q: 可以在 scripts 目录外运行吗？**
+A: 可以！脚本会自动从项目根目录加载 `.env` 文件。建议在项目根目录运行，或使用 `npm start` 命令。
 
 ---
 

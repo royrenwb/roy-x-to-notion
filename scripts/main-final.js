@@ -5,6 +5,10 @@
  * Orchestrates core downloader and optional Notion uploader
  */
 
+// Load environment variables from .env file
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 const { downloadXUrl } = require('./core-downloader');
 const { uploadToNotion } = require('./notion-uploader');
 
